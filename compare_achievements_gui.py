@@ -156,6 +156,7 @@ def generate_html_report(old_ver, new_ver, added_ids, new_achievements, old_coun
     <title>붕괴: 스타레일 업적 비교 ({old_ver} → {new_ver})</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
@@ -363,6 +364,40 @@ def generate_html_report(old_ver, new_ver, added_ids, new_achievements, old_coun
         .footer a {{ color: #7ec8e3; text-decoration: none; }}
         .footer a:hover {{ text-decoration: underline; }}
 
+        /* --- Capture Button --- */
+        .capture-btn {{
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #cdd6f4;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+        .capture-btn:hover {{
+            background: rgba(255,255,255,0.18);
+            border-color: rgba(255,255,255,0.25);
+            transform: translateY(-1px);
+        }}
+        .capture-btn:active {{
+            transform: translateY(0);
+        }}
+        .capture-btn.capturing {{
+            opacity: 0.6;
+            pointer-events: none;
+        }}
+
         /* --- Empty State --- */
         .empty-state {{
             text-align: center;
@@ -405,6 +440,44 @@ def generate_html_report(old_ver, new_ver, added_ids, new_achievements, old_coun
             아이콘 출처: <a href="https://starrail.honeyhunterworld.com">Honey Hunter World</a>
         </div>
     </div>
+
+    <button class="capture-btn" id="captureBtn" onclick="captureFullPage()">
+        📷 전체 캡처
+    </button>
+
+    <script>
+    async function captureFullPage() {{
+        const btn = document.getElementById('captureBtn');
+        btn.classList.add('capturing');
+        btn.textContent = '✨ 캡처 중...';
+
+        // Hide the button during capture
+        btn.style.display = 'none';
+
+        try {{
+            const canvas = await html2canvas(document.body, {{
+                backgroundColor: '#0a0a1a',
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                scrollY: -window.scrollY,
+                windowWidth: document.body.scrollWidth,
+                windowHeight: document.body.scrollHeight,
+            }});
+
+            const link = document.createElement('a');
+            link.download = 'achievement_diff_{old_ver}_to_{new_ver}.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }} catch (err) {{
+            alert('캡처에 실패했습니다: ' + err.message);
+        }} finally {{
+            btn.style.display = 'flex';
+            btn.classList.remove('capturing');
+            btn.innerHTML = '📷 전체 캡처';
+        }}
+    }}
+    </script>
 </body>
 </html>"""
 
