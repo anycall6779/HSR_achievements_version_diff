@@ -10,6 +10,14 @@ import html as html_module
 # 서버에 존재하는 알려진 버전 목록 (사용자가 직접 입력도 가능)
 VERSIONS = ["4.0", "4.0.52", "4.0.53", "4.0.54", "4.1.51"]
 
+# 지원 언어 목록 {표시 이름: API 코드}
+LANGUAGES = {
+    "한국어": "ko",
+    "English": "en",
+    "日本語": "ja",
+    "中文(简体)": "zh",
+}
+
 # 희귀도 → 성옥 보상 매핑
 RARITY_TO_JADE = {
     "Low": 5,
@@ -20,22 +28,22 @@ RARITY_TO_JADE = {
 # 성옥 아이콘 URL
 JADE_ICON_URL = "https://static.nanoka.cc/assets/hsr/itemfigures/900001.webp"
 
-# 시리즈 이름(한국어) → honeyhunterworld slug 매핑
+# 시리즈 ID → honeyhunterworld slug 매핑 (언어에 상관없이 ID는 동일)
 SERIES_SLUG_MAP = {
-    "나, 개척자": "i-trailblazer",
-    "유성의 흔적": "vestige-of-luminflux",
-    "뭇별로 향하는 궤도": "the-rail-unto-the-stars",
-    "신비에 대한 탐구": "fathom-the-unfathomable",
-    "너와 동행한 추억": "the-memories-we-share",
-    "굴복하지 않는 자의 영광": "glory-of-the-unyielding",
-    "솟구치는 전의": "eager-for-battle",
-    "순간의 환락": "moment-of-joy",
-    "껍질 속 우주": "universe-in-a-nutshell",
+    "1": "i-trailblazer",
+    "2": "vestige-of-luminflux",
+    "3": "the-rail-unto-the-stars",
+    "4": "fathom-the-unfathomable",
+    "5": "the-memories-we-share",
+    "6": "glory-of-the-unyielding",
+    "7": "eager-for-battle",
+    "8": "moment-of-joy",
+    "9": "universe-in-a-nutshell",
 }
 
-def get_series_icon_url(series_name):
-    """시리즈 이름으로부터 아이콘 이미지 URL을 생성합니다."""
-    slug = SERIES_SLUG_MAP.get(series_name, "")
+def get_series_icon_url(series_id):
+    """시리즈 ID로부터 아이콘 이미지 URL을 생성합니다."""
+    slug = SERIES_SLUG_MAP.get(str(series_id), "")
     if slug:
         return f"https://starrail.honeyhunterworld.com/img/achievement_series/{slug}-achievement_series_icon.webp"
     return ""
@@ -81,23 +89,26 @@ def extract_achievement_dict(data):
 def generate_html_report(old_ver, new_ver, added_ids, new_achievements, old_count, new_count):
     """새로 추가된 업적 + 보상 + 시리즈 아이콘을 포함하는 HTML 리포트를 생성합니다."""
 
-    # 시리즈별로 그룹핑
-    series_groups = {}
+    # 시리즈별로 그룹핑 (시리즈 ID 기준으로 그룹핑하여 언어와 무관하게 아이콘 매핑)
+    series_groups = {}  # {series_id: {'name': str, 'achs': list}}
     total_jade = 0
     for ach_id in added_ids:
         ach = new_achievements[ach_id]
-        series_name = ach.get('series_name') or '기타'
-        if series_name not in series_groups:
-            series_groups[series_name] = []
-        series_groups[series_name].append(ach)
+        sid = ach.get('series_id', '0')
+        series_name = ach.get('series_name') or f'Series {sid}'
+        if sid not in series_groups:
+            series_groups[sid] = {'name': series_name, 'achs': []}
+        series_groups[sid]['achs'].append(ach)
         total_jade += RARITY_TO_JADE.get(ach.get('rarity', ''), 0)
 
-    # 시리즈별 업적 카드 생성
+    # 시리즈별 업적 카드 생성 (시리즈 ID 순서로 정렬)
     series_html = ""
-    for series_name, achs in sorted(series_groups.items()):
+    for sid, group in sorted(series_groups.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999):
+        series_name = group['name']
+        achs = group['achs']
         esc_name = html_module.escape(series_name)
         series_jade = sum(RARITY_TO_JADE.get(a.get('rarity', ''), 0) for a in achs)
-        icon_url = get_series_icon_url(series_name)
+        icon_url = get_series_icon_url(sid)
         icon_html = f'<img src="{icon_url}" alt="{esc_name}" class="series-icon"/>' if icon_url else ''
 
         series_html += f"""
@@ -418,8 +429,10 @@ def on_compare_clicked():
     btn_compare.config(state=tk.DISABLED, text="데이터 불러오는 중...")
     root.update()
 
-    old_data = fetch_achievements(old_ver, "ko")
-    new_data = fetch_achievements(new_ver, "ko")
+    lang_code = LANGUAGES.get(lang_var.get(), "ko")
+
+    old_data = fetch_achievements(old_ver, lang_code)
+    new_data = fetch_achievements(new_ver, lang_code)
 
     if old_data is None:
         messagebox.showerror("에러", f"'{old_ver}' 버전의 데이터를 불러올 수 없습니다.\n해당 버전이 서버에 존재하는지 확인하세요.")
@@ -462,7 +475,7 @@ def on_compare_clicked():
 # --- GUI Setup ---
 root = tk.Tk()
 root.title("붕괴: 스타레일 — 업적 비교기")
-root.geometry("440x300")
+root.geometry("440x340")
 root.resizable(False, False)
 root.configure(bg="#1e1e2e")
 
@@ -505,6 +518,13 @@ ttk.Label(frame_new, text="새 버전:", width=10).pack(side=tk.LEFT)
 new_var = tk.StringVar(value=VERSIONS[-1])
 cb_new = ttk.Combobox(frame_new, textvariable=new_var, values=VERSIONS, width=20)
 cb_new.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+frame_lang = ttk.Frame(mainframe)
+frame_lang.pack(fill=tk.X, pady=5)
+ttk.Label(frame_lang, text="언어:", width=10).pack(side=tk.LEFT)
+lang_var = tk.StringVar(value="한국어")
+cb_lang = ttk.Combobox(frame_lang, textvariable=lang_var, values=list(LANGUAGES.keys()), state="readonly", width=20)
+cb_lang.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
 ttk.Label(mainframe, text="💡 드롭다운에서 선택하거나, 직접 버전 번호를 입력할 수 있습니다.",
           style='Hint.TLabel').pack(pady=(5, 0), anchor=tk.W)
