@@ -1,4 +1,5 @@
 import urllib.request
+import urllib.parse
 import json
 import ssl
 import tkinter as tk
@@ -8,7 +9,7 @@ import os
 import html as html_module
 
 # 서버에 존재하는 알려진 버전 목록 (사용자가 직접 입력도 가능)
-VERSIONS = ["4.0", "4.0.52", "4.0.53", "4.0.54", "4.1.51"]
+VERSIONS = ["4.0", "4.0.52", "4.0.53", "4.0.54", "4.1.51", "4.1.52+14427120"]
 
 # 지원 언어 목록 {표시 이름: API 코드}
 LANGUAGES = {
@@ -50,7 +51,9 @@ def get_series_icon_url(series_id):
 
 def fetch_achievements(version, lang="ko"):
     """nanoka.cc에서 해당 버전의 업적 JSON을 가져옵니다."""
-    url = f"https://static.nanoka.cc/hsr/{version}/{lang}/achievement/achievement.json"
+    encoded_version = urllib.parse.quote(version, safe='')
+    encoded_lang = urllib.parse.quote(lang, safe='')
+    url = f"https://static.nanoka.cc/hsr/{encoded_version}/{encoded_lang}/achievement/achievement.json"
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
 
     ctx = ssl.create_default_context()
